@@ -23,6 +23,13 @@ legendaries_gotten = {}
 total_wanted = 0
 total_gotten = 0
 
+# variables for optimisation
+total_cost = 0 # cost is same as number of rolls done
+                # can consider if catfood rolls should be twice as valuable as ticket rolls
+                # also to consider if catfood 11 draws should be considered as 10 or 11 rolls
+                # also consider if catfood and ticket costs should be separate, but that will have 
+                # additional complications because Depth First Search can only optimise on one axis?
+
 
 def xorshift32(seed: int) -> int:
     """Generate the next xorshift32 value from a 32-bit seed."""
@@ -115,7 +122,8 @@ def get_alt_seed() -> tuple:
 
 
 def roll_1() -> None:
-    global current_position, previous_rarity, previous_cat, tickets_singles
+    global current_position, previous_rarity, previous_cat, tickets_singles,  total_cost
+    total_cost += 1
     tickets_singles -= 1
     current_position += 1
     advance_seed()
@@ -135,7 +143,8 @@ def roll_1() -> None:
 
 
 def roll_11_guarantee() -> None:
-    global tickets_singles, catfood_11s
+    global tickets_singles, catfood_11s, total_cost
+    total_cost += 1 # the original 10 rolls are already accounted for
     tickets_singles += 10
     catfood_11s -= 1
     print(f"Starting a guaranteed 11 roll from {current_position+1}{current_track}")
@@ -180,14 +189,11 @@ def main():
     print(legendaries_gotten)
     # if you in fact already have some, then here is when you should update the above dicts
 
-    # print("Xorshift32 random sequence:")
-    # for i in range(4):
-    #     # roll_1()
-    #     roll_11_guarantee()
-    while total_gotten < total_wanted and catfood_11s > 0:
-        roll_11_guarantee()
     while total_gotten < total_wanted and tickets_singles > 0:
         roll_1()
+    while total_gotten < total_wanted and catfood_11s > 0:
+        roll_11_guarantee()
+    # replace the above with dfs
     
     # your bounty
     print(rares_gotten)
@@ -195,6 +201,9 @@ def main():
     print(ubers_gotten)
     print(legendaries_gotten)
     print(f"{total_gotten}/{total_wanted}")
+    print(f"Remaining Resources: {tickets_singles} tickets and {catfood_11s} catfood 11 draws")
+    print(f"Total Cost: {total_cost}")
+    print(f"Final Seed: {seed_tuple[1]}")
 
 
 if __name__ == "__main__":
