@@ -403,7 +403,7 @@ def main():
     print(legendaries_gotten)
     # if you in fact already have some, then here is when you should update the above dicts
     # alternatively, if there are cats in the cat_num range that you are interested in, but you dont mind not getting those particular cats, change their bit to "1", it will appear as it you have already gotten it.
-    ideal_bitmask = 0b1111111111111111 
+    ideal_bitmask = 0b1111111111111111
 
     rarity_seed = 0
     unit_seed = 
@@ -415,23 +415,18 @@ def main():
     steps = dfs(rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask, tickets_singles, catfood_11s, ideal_bitmask)
     print("Steps: ", steps)
 
+    # steps tracing uses the globvar version of the roll functions, these functions print out each line.
+    # TODO: refactor to remove globvar version of the functions, and add whether to print as a param
     total_cost = 0
     for step in steps:
         if bitmask == ideal_bitmask:
             break
         if step == 1:
             roll_1()
-            # rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask = get_roll_1(rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask)
             total_cost += 1
         elif step == 11:
             roll_11_guarantee()
-            # rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask = get_roll_11_guarantee(rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask)
             total_cost += 11
-
-    # while total_gotten < total_wanted and tickets_singles > 0:
-    #     roll_1()
-    # while total_gotten < total_wanted and catfood_11s > 0:
-    #     roll_11_guarantee()
     
     # your bounty
     print(rares_gotten)
