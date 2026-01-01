@@ -1,20 +1,4 @@
-from config import rare, super_rare, uber, legendary, rarity
-
-# how many tickets you have
-tickets_singles = 110
-
-# how many times you can roll a 11 roll. usually 1500 catfood required per 11 roll.
-catfood_11s = 11
-
-seed_tuple: tuple = None
-
-current_track = "A" # "A" or "B" 
-                    # we can probably do without this, just gotta keep track of when track switch happens
-                    # i guess its purely for display purposes
-current_position = 0
-
-previous_rarity = "Legendary" # oh maybe i dont need this as well
-previous_cat = "Kyosaka Nanaho"
+from output_config import rare, super_rare, uber, legendary, rarity
 
 rares_gotten = {}
 super_rares_gotten = {}
@@ -23,12 +7,15 @@ legendaries_gotten = {}
 total_wanted = 0
 total_gotten = 0
 
-# variables for optimisation
-total_cost = 0 # cost is same as number of rolls done
-                # can consider if catfood rolls should be twice as valuable as ticket rolls
-                # also to consider if catfood 11 draws should be considered as 10 or 11 rolls
-                # also consider if catfood and ticket costs should be separate, but that will have 
-                # additional complications because Depth First Search can only optimise on one axis?
+rares_wanted = 0
+super_rares_wanted = 0
+ubers_wanted = 0
+legendaries_wanted = 0
+
+# variable to note if search is completed. if it is complete,
+# print out each step. else, dont print so much because i/o
+# is costly
+is_finalized = False
 
 
 def xorshift32(seed: int) -> int:
@@ -54,59 +41,42 @@ def get_rarity(seed: int) -> str:
         return "Legendary"
 
 
-def get_cat(seed: int, rarity: str) -> str:
-    global rares_gotten, super_rares_gotten, ubers_gotten, legendaries_gotten, total_gotten
-    if rarity == "Rare":
-        cat_num = seed % len(rare)
-        if cat_num < len(rares_gotten):
-            if not rares_gotten[cat_num]:
-                total_gotten += 1
-            rares_gotten[cat_num] = True
-        return rare[cat_num]
-
-    elif rarity == "Super Rare":
-        cat_num = seed % len(super_rare)
-        if cat_num < len(super_rares_gotten):
-            if not super_rares_gotten[cat_num]:
-                total_gotten += 1
-            super_rares_gotten[cat_num] = True
-        return super_rare[cat_num]
-
-    elif rarity == "Uber":
-        cat_num = seed % len(uber)
-        if cat_num < len(ubers_gotten):
-            if not ubers_gotten[cat_num]:
-                total_gotten += 1
-            ubers_gotten[cat_num] = True
-        return uber[cat_num]
-
-    elif rarity == "Legendary":
-        cat_num = seed % len(legendary)
-        if cat_num < len(legendaries_gotten):
-            if not legendaries_gotten[cat_num]:
-                total_gotten += 1
-            legendaries_gotten[cat_num] = True
-        return legendary[cat_num]
-
-    else:
-        raise ValueError(f"Unknown rarity: {rarity}")
-
-
 def get_cat_fn(seed: int, rarity: str):
+    global total_gotten
     if rarity == "Rare":
         cat_num = seed % len(rare)
+        if is_finalized:
+            if cat_num < len(rares_gotten):
+                if not rares_gotten[cat_num]:
+                    total_gotten += 1
+                rares_gotten[cat_num] = True
         return rare[cat_num], cat_num
 
     elif rarity == "Super Rare":
         cat_num = seed % len(super_rare)
+        if is_finalized:
+            if cat_num < len(super_rares_gotten):
+                if not super_rares_gotten[cat_num]:
+                    total_gotten += 1
+                super_rares_gotten[cat_num] = True
         return super_rare[cat_num], cat_num
 
     elif rarity == "Uber":
         cat_num = seed % len(uber)
+        if is_finalized:
+            if cat_num < len(ubers_gotten):
+                if not ubers_gotten[cat_num]:
+                    total_gotten += 1
+                ubers_gotten[cat_num] = True
         return uber[cat_num], cat_num
 
     elif rarity == "Legendary":
         cat_num = seed % len(legendary)
+        if is_finalized:
+            if cat_num < len(legendaries_gotten):
+                if not legendaries_gotten[cat_num]:
+                    total_gotten += 1
+                legendaries_gotten[cat_num] = True
         return legendary[cat_num], cat_num
 
     else:
@@ -119,75 +89,6 @@ def get_non_dupe_rare(seed: int, previous_cat: str):
     if cat_num >= key:
         cat_num += 1
     return rare[cat_num], cat_num
-
-
-def advance_seed() -> None:
-    global seed_tuple
-    next_one = xorshift32(seed_tuple[1])
-    next_two = xorshift32(next_one)
-    seed_tuple = (next_one, next_two)
-    return
-
-
-def switch_track() -> None:
-    global seed_tuple, current_track, current_position
-    print(f"Track switch: {current_position}{current_track}", end="")
-    seed_tuple = (seed_tuple[1], xorshift32(seed_tuple[1]))
-    if current_track == "A":
-        current_track = "B"
-    elif current_track == "B":
-        current_track = "A"
-        current_position += 1
-    else:
-        raise ValueError(f"Unknown track: {current_track}")
-    print(f" -> {current_position}{current_track}")
-    return
-
-
-# get alt seed for current seed, does not actually modify your seed
-def get_alt_seed() -> tuple:
-    alt_seed = (seed_tuple[1], xorshift32(seed_tuple[1]))
-    return alt_seed
-
-
-def roll_1() -> None:
-    global current_position, previous_rarity, previous_cat, tickets_singles,  total_cost
-    total_cost += 1
-    tickets_singles -= 1
-    current_position += 1
-    advance_seed()
-    rarity = get_rarity(seed_tuple[0])
-    cat = get_cat(seed_tuple[1], rarity)
-
-    # track switch if dupe rares
-    if rarity == "Rare" and cat == previous_cat:
-        switch_track()
-        rarity = get_rarity(seed_tuple[0])
-        cat = get_cat(seed_tuple[1], rarity)
-
-    previous_rarity = rarity
-    previous_cat = cat
-    print(f"{current_position}{current_track}: {seed_tuple}   {rarity} {cat}   Alt seed: {get_alt_seed()}")
-    return
-
-
-def roll_11_guarantee() -> None:
-    global tickets_singles, catfood_11s, total_cost
-    total_cost += 1 # the original 10 rolls are already accounted for
-    tickets_singles += 10
-    catfood_11s -= 1
-    print(f"Starting a guaranteed 11 roll from {current_position+1}{current_track}")
-    for _ in range(10):
-        roll_1()
-
-    # get your guaranteed uber
-    switch_track()
-    cat = get_cat(seed_tuple[1], "Uber")
-    previous_rarity = "Uber"
-    previous_cat = cat
-    print(f"Guaranteed: {current_position}{current_track}: {seed_tuple}   {cat}")
-    print(f" -> {current_position+1}{current_track}")
-    return
 
 
 def get_next_seed(rarity_seed: int, unit_seed: int):
@@ -208,13 +109,10 @@ def get_track_switch(rarity_seed: int, unit_seed: int, current_track: str, curre
         next_position = current_position + 1
     else:
         raise ValueError(f"Unknown track: {current_track}")
-    # print(f" -> {next_position}{next_track}")
+    if is_finalized:
+        print(f" -> {next_position}{next_track}")
     return next_rarity_seed, next_unit_seed, next_track, next_position
 
-rares_wanted = 4
-super_rares_wanted = 3
-ubers_wanted = 8
-legendaries_wanted = 1
 
 def get_bit(rarity: str, cat_num: int) -> int:
     if rarity == "Rare":
@@ -267,7 +165,9 @@ def get_roll_1(rarity_seed: int, unit_seed: int, current_track: str, current_pos
     bitmask = get_bitmask(previous_bitmask, rarity, cat_num)
     # rarity = rarity
     # previous_cat = cat
-    # print(f"{next_position}{next_track}: ({next_rarity_seed}, {next_unit_seed})   {rarity} {cat}   Alt seed: {get_alt_seed()}")
+    if is_finalized:
+        # print(f"{next_position}{next_track}: ({next_rarity_seed}, {next_unit_seed})   {rarity} {cat}   Alt seed: {get_alt_seed()}")
+        print(f"{next_position}{next_track}: ({next_rarity_seed}, {next_unit_seed})   {rarity} {cat}")
     return next_rarity_seed, next_unit_seed, next_track, next_position, rarity, cat, bitmask
 
 
@@ -276,7 +176,8 @@ def get_roll_11_guarantee(rarity_seed: int, unit_seed: int, current_track: str, 
     next_track, next_position = current_track, current_position
     rarity, cat = previous_rarity, previous_cat
     bitmask = previous_bitmask
-    # print(f"Starting a guaranteed 11 roll from {current_position+1}{current_track}")
+    if is_finalized:
+        print(f"Starting a guaranteed 11 roll from {current_position+1}{current_track}")
     for _ in range(10):
         next_rarity_seed, next_unit_seed, next_track, next_position, rarity, cat, bitmask = get_roll_1(next_rarity_seed, next_unit_seed, next_track, next_position, rarity, cat, bitmask)
 
@@ -286,16 +187,13 @@ def get_roll_11_guarantee(rarity_seed: int, unit_seed: int, current_track: str, 
     cat, cat_num = get_cat_fn(next_unit_seed, rarity)
     bitmask = get_bitmask(bitmask, rarity, cat_num)
 
-    # print(f"Guaranteed: {next_position}{next_track}: ({next_rarity_seed}, {next_unit_seed})   {cat}")
-    # print(f" -> {next_position+1}{next_track}")
+    if is_finalized:
+        print(f"Guaranteed: {next_position}{next_track}: ({next_rarity_seed}, {next_unit_seed})   {cat}")
+        print(f" -> {next_position+1}{next_track}")
     return next_rarity_seed, next_unit_seed, next_track, next_position, rarity, cat, bitmask
 
 
-def dfs_rec():
-    return
-
-
-def dfs(rarity_seed: int, unit_seed: int, current_track: str, current_position: int, previous_rarity: str, previous_cat: str, bitmask: int, tickets_singles: int, catfood_11s: int, ideal_bitmask: int) -> list:
+def dfs(rarity_seed: int, unit_seed: int, current_track: str, current_position: int, previous_rarity: str, previous_cat: str, bitmask: int, tickets_singles: int, catfood_11s: int, ideal_bitmask: int):
     best_trace = []
     best_cost = 999
 
@@ -353,7 +251,7 @@ def dfs(rarity_seed: int, unit_seed: int, current_track: str, current_position: 
                 best_trace = current_trace[:]
                 best_cost = current_cost
                 improvements += 1
-                if improvements > 10:
+                if improvements > 15:
                     break
             continue # dont append new stuff after, path ends here because all cats found
             # break # for testing
@@ -367,26 +265,17 @@ def dfs(rarity_seed: int, unit_seed: int, current_track: str, current_position: 
         if tickets_singles > 0:
             stack.append((rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask, 1))
 
-    return best_trace
+    return best_trace, best_cost
 
 
 def main():
-    global seed_tuple, current_track, current_position, previous_cat, tickets_singles, catfood_11s,\
-    rares_gotten, super_rares_gotten, ubers_gotten, legendaries_gotten, total_wanted, total_gotten
-
-    # initialise your variables
-    seed = 1022507091  # initial seed TODO: add your seed here
-    current_track = "A"
-    current_position = 0
-    previous_cat = "Kyosaka Nanaho"
-    seed_tuple = (0, seed)
-    tickets_singles = 110
-    catfood_11s = 11
-
+    # TODO: use argparse instead
     # things you wanna try to get
+    # TODO: initialise your variables here
+    global rares_gotten, super_rares_gotten, ubers_gotten, legendaries_gotten, total_wanted, total_gotten
     global rares_wanted, super_rares_wanted, ubers_wanted, legendaries_wanted
-    rares_wanted, super_rares_wanted, ubers_wanted, legendaries_wanted = 4, 3, 8, 1
-    bitmask_bin = 0b0000000000000000
+    rares_wanted, super_rares_wanted, ubers_wanted, legendaries_wanted = 3, 3, 8, 0
+    bitmask_bin = 0b00000000111111
     bitmask = int(bitmask_bin)
     print(bitmask)
     print(bin(bitmask))
@@ -403,30 +292,32 @@ def main():
     print(legendaries_gotten)
     # if you in fact already have some, then here is when you should update the above dicts
     # alternatively, if there are cats in the cat_num range that you are interested in, but you dont mind not getting those particular cats, change their bit to "1", it will appear as it you have already gotten it.
-    ideal_bitmask = 0b1111111111111111
+    ideal_bitmask = 2**total_wanted-1
 
+    # TODO: initialise your variables here
     rarity_seed = 0
-    unit_seed = 
+    unit_seed = 0
     current_track = "A"
     current_position = 0
-    previous_rarity = "Legendary"
-    previous_cat = "Kyosaka Nanaho"
+    previous_rarity = "Uber"
+    previous_cat = "Koneko"
+    tickets_singles = 50
+    catfood_11s = 4
 
-    steps = dfs(rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask, tickets_singles, catfood_11s, ideal_bitmask)
+    steps, total_cost = dfs(rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask, tickets_singles, catfood_11s, ideal_bitmask)
     print("Steps: ", steps)
+    global is_finalized
+    is_finalized = True
 
-    # steps tracing uses the globvar version of the roll functions, these functions print out each line.
-    # TODO: refactor to remove globvar version of the functions, and add whether to print as a param
-    total_cost = 0
     for step in steps:
         if bitmask == ideal_bitmask:
             break
         if step == 1:
-            roll_1()
-            total_cost += 1
+            rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask = get_roll_1(rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask)
+            tickets_singles -= 1
         elif step == 11:
-            roll_11_guarantee()
-            total_cost += 11
+            rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask = get_roll_11_guarantee(rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask)
+            catfood_11s -= 1
     
     # your bounty
     print(rares_gotten)
@@ -436,7 +327,7 @@ def main():
     print(f"{total_gotten}/{total_wanted}")
     print(f"Remaining Resources: {tickets_singles} tickets and {catfood_11s} catfood 11 draws")
     print(f"Total Cost: {total_cost}")
-    print(f"Final Seed: {seed_tuple[1]}")
+    print(f"Final Seed: {unit_seed}")
 
     print(bitmask)
     print(bin(bitmask))
