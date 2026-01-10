@@ -11,7 +11,7 @@ if __name__ == "__main__":
     file = sys.argv[1]
     with open(file) as f:
         lines = f.read().split("\n")
-        lines = [l for l in lines if len(l) > 0]
+        lines = [l.strip() for l in lines if len(l) > 0]
         for line in lines:
             parts = re.split('\:|\(|\)', line)
             parts = [str.strip(p) for p in parts]
