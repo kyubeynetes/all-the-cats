@@ -1,4 +1,5 @@
-from output_config import rare, super_rare, uber, legendary, rarity
+import json
+from config import rare, super_rare, uber, legendary, rarity
 
 rares_gotten = {}
 super_rares_gotten = {}
@@ -205,8 +206,6 @@ def dfs(rarity_seed: int, unit_seed: int, current_track: str, current_position: 
     stack = []
     stack.append((rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask, 11))
     stack.append((rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask, 1))
-    print(stack)
-    # return best_steps
     while True:
         if len(stack) == 0:
             break
@@ -246,17 +245,14 @@ def dfs(rarity_seed: int, unit_seed: int, current_track: str, current_position: 
             # this must be the final cat that is needed, because if this isnt the final cat that is needed,
             # and it is now true that all needed cats are found, then this condition must have been met earlier.
             if current_cost < best_cost:
-                print("current best_trace:", best_trace)
-                print("current best_cost:", best_cost)
                 best_trace = current_trace[:]
                 best_cost = current_cost
+                print(f"current best: cost={best_cost} trace={best_trace} {improvements} previous solutions")
                 improvements += 1
                 if improvements > 15:
                     break
             continue # dont append new stuff after, path ends here because all cats found
             # break # for testing
-
-
         # for backtracking
         if current_cost > 90:
             continue
@@ -268,17 +264,28 @@ def dfs(rarity_seed: int, unit_seed: int, current_track: str, current_position: 
     return best_trace, best_cost
 
 
+def print_units_gotten():
+    symbol = lambda x: "YES" if x else "---"
+    rares_named = {f"{k} ({rare[k]})":symbol(v) for k, v in rares_gotten.items()}
+    print(json.dumps(rares_named, indent=4))
+    super_rares_named = {f"{k} ({super_rare[k]})":symbol(v) for k, v in super_rares_gotten.items()}
+    print(json.dumps(super_rares_named, indent=4))
+    ubers_named = {f"{k} ({uber[k]})":symbol(v) for k, v in ubers_gotten.items()}
+    print(json.dumps(ubers_named, indent=4))
+    legendaries_named = {f"{k} ({legendary[k]})":symbol(v) for k, v in legendaries_gotten.items()}
+    print(json.dumps(legendaries_named, indent=4))
+    return
+
+
 def main():
     # TODO: use argparse instead
     # things you wanna try to get
     # TODO: initialise your variables here
-    global rares_gotten, super_rares_gotten, ubers_gotten, legendaries_gotten, total_wanted, total_gotten
-    global rares_wanted, super_rares_wanted, ubers_wanted, legendaries_wanted
-    rares_wanted, super_rares_wanted, ubers_wanted, legendaries_wanted = 3, 3, 8, 0
-    bitmask_bin = 0b00000000111111
+    global rares_gotten, super_rares_gotten, ubers_gotten, legendaries_gotten, total_gotten
+    global rares_wanted, super_rares_wanted, ubers_wanted, legendaries_wanted, total_wanted
+    rares_wanted, super_rares_wanted, ubers_wanted, legendaries_wanted = 4, 3, 8, 0
+    bitmask_bin = 0b000000001111111
     bitmask = int(bitmask_bin)
-    print(bitmask)
-    print(bin(bitmask))
     total_wanted = rares_wanted + super_rares_wanted + ubers_wanted + legendaries_wanted
     rares_gotten = {i: False for i in range(rares_wanted)}
     super_rares_gotten = {i: False for i in range(super_rares_wanted)}
@@ -286,10 +293,6 @@ def main():
     legendaries_gotten = {i: False for i in range(legendaries_wanted)}
     total_gotten = 0
     print(rares_wanted, super_rares_wanted, ubers_wanted, legendaries_wanted)
-    print(rares_gotten)
-    print(super_rares_gotten)
-    print(ubers_gotten)
-    print(legendaries_gotten)
     # if you in fact already have some, then here is when you should update the above dicts
     # alternatively, if there are cats in the cat_num range that you are interested in, but you dont mind not getting those particular cats, change their bit to "1", it will appear as it you have already gotten it.
     ideal_bitmask = 2**total_wanted-1
@@ -305,7 +308,7 @@ def main():
     catfood_11s = 4
 
     steps, total_cost = dfs(rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask, tickets_singles, catfood_11s, ideal_bitmask)
-    print("Steps: ", steps)
+    print("final steps: ", steps)
     global is_finalized
     is_finalized = True
 
@@ -320,16 +323,12 @@ def main():
             catfood_11s -= 1
     
     # your bounty
-    print(rares_gotten)
-    print(super_rares_gotten)
-    print(ubers_gotten)
-    print(legendaries_gotten)
+    print_units_gotten()
     print(f"{total_gotten}/{total_wanted}")
     print(f"Remaining Resources: {tickets_singles} tickets and {catfood_11s} catfood 11 draws")
     print(f"Total Cost: {total_cost}")
     print(f"Final Seed: {unit_seed}")
 
-    print(bitmask)
     print(bin(bitmask))
 
 if __name__ == "__main__":
