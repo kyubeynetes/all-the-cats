@@ -1,17 +1,29 @@
+import argparse
 import json
-from config import rare, super_rare, uber, legendary, rarity
+import sys
+import importlib.util
+import pathlib
 
+# config dicts
+rare = {}
+super_rare = {}
+uber = {}
+legendary = {}
+rarity = {}
+
+# units gotten
 rares_gotten = {}
 super_rares_gotten = {}
 ubers_gotten = {}
 legendaries_gotten = {}
-total_wanted = 0
 total_gotten = 0
 
+# units wanted
 rares_wanted = 0
 super_rares_wanted = 0
 ubers_wanted = 0
 legendaries_wanted = 0
+total_wanted = 0
 
 # variable to note if search is completed. if it is complete,
 # print out each step. else, dont print so much because i/o
@@ -238,6 +250,8 @@ def dfs(rarity_seed: int, unit_seed: int, current_track: str, current_position: 
                 current_cost -= 1
             continue # dont append new stuff after bactracking if not you'll go in circles
 
+        # TODO: fix edge case error that happens when all available resources / wanted cats
+        # are zero because condition fulfilled check happens after a step is taken.
         if bitmask == ideal_bitmask:
             # all wanted cats found
             # also this MUST happen after a step == 11 or 1 block, rather than a backtracking block.
@@ -249,12 +263,12 @@ def dfs(rarity_seed: int, unit_seed: int, current_track: str, current_position: 
                 best_cost = current_cost
                 print(f"current best: cost={best_cost} trace={best_trace} {improvements} previous solutions")
                 improvements += 1
-                if improvements > 15:
+                if improvements > 30:
                     break
             continue # dont append new stuff after, path ends here because all cats found
             # break # for testing
         # for backtracking
-        if current_cost > 90:
+        if current_cost > 100:
             continue
         if catfood_11s > 0:
             stack.append((rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask, 11))
@@ -277,15 +291,53 @@ def print_units_gotten():
     return
 
 
+def load_config(path):
+    path = pathlib.Path(path).resolve()
+
+    spec = importlib.util.spec_from_file_location("config", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    return module
+
+
 def main():
-    # TODO: use argparse instead
-    # things you wanna try to get
-    # TODO: initialise your variables here
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", required=True, help="Path to config .py file")
+    parser.add_argument("--output", help="Path to output file, writes to stdout if absent")
+    parser.add_argument("-r", "--rares-wanted", type=int, default=0)
+    parser.add_argument("-s", "--super-rares-wanted", type=int, default=0)
+    parser.add_argument("-u", "--ubers-wanted", type=int, default=0)
+    parser.add_argument("-l", "--legendaries-wanted", type=int, default=0)
+    parser.add_argument("--starting-bitmask", type=str, default="0b0")
+    parser.add_argument("--starting-seed", required=True, type=int)
+    parser.add_argument("--starting-track", type=str, default="A")
+    parser.add_argument("--starting-position", type=int, default=0)
+    parser.add_argument("--previous-rarity", type=str, default="Legendary")
+    parser.add_argument("--previous-cat", type=str, default="")
+    parser.add_argument("--available-tickets", type=int, default=0)
+    parser.add_argument("--available-catfood-11s", type=int, default=0)
+    args = parser.parse_args()
+
+    config = load_config(args.config)
+    global rare, super_rare, uber, legendary, rarity
+    rare = config.rare
+    super_rare = config.super_rare
+    uber = config.uber
+    legendary = config.legendary
+    rarity = config.rarity
+
+    if args.output:
+        f = open(args.output, "w")
+        sys.stdout = f
+
     global rares_gotten, super_rares_gotten, ubers_gotten, legendaries_gotten, total_gotten
     global rares_wanted, super_rares_wanted, ubers_wanted, legendaries_wanted, total_wanted
-    rares_wanted, super_rares_wanted, ubers_wanted, legendaries_wanted = 4, 3, 8, 0
-    bitmask_bin = 0b000000001111111
-    bitmask = int(bitmask_bin)
+    rares_wanted = args.rares_wanted
+    super_rares_wanted = args.super_rares_wanted
+    ubers_wanted = args.ubers_wanted
+    legendaries_wanted = args.legendaries_wanted
+    bitmask = int(args.starting_bitmask, base=0)
     total_wanted = rares_wanted + super_rares_wanted + ubers_wanted + legendaries_wanted
     rares_gotten = {i: False for i in range(rares_wanted)}
     super_rares_gotten = {i: False for i in range(super_rares_wanted)}
@@ -297,17 +349,18 @@ def main():
     # alternatively, if there are cats in the cat_num range that you are interested in, but you dont mind not getting those particular cats, change their bit to "1", it will appear as it you have already gotten it.
     ideal_bitmask = 2**total_wanted-1
 
-    # TODO: initialise your variables here
     rarity_seed = 0
-    unit_seed = 0
-    current_track = "A"
-    current_position = 0
-    previous_rarity = "Uber"
-    previous_cat = "Koneko"
-    tickets_singles = 50
-    catfood_11s = 4
+    unit_seed = args.starting_seed
+    current_track = args.starting_track
+    current_position = args.starting_position
+    previous_rarity = args.previous_rarity
+    previous_cat = args.previous_cat
+    tickets_singles = args.available_tickets
+    catfood_11s = args.available_catfood_11s
 
+    print(f"starting with {tickets_singles} tickets and {catfood_11s} catfood 11 draws")
     steps, total_cost = dfs(rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask, tickets_singles, catfood_11s, ideal_bitmask)
+    print()
     print("final steps: ", steps)
     global is_finalized
     is_finalized = True
@@ -330,6 +383,9 @@ def main():
     print(f"Final Seed: {unit_seed}")
 
     print(bin(bitmask))
+
+    if args.output:
+        f.close()
 
 if __name__ == "__main__":
     main()
