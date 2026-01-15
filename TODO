@@ -1,3 +1,5 @@
 1. change config from python to json
 2. allow switching between multiple banners (up to 2)
 3. use generics / classes and inheritance for different rarities
+4. use current best cost as parameter for pruning
+5. optimise the search, currently its O(m^n) where m=#(tickets) and n=#(11 draws), n=5 already takes forever
