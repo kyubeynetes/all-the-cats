@@ -1,0 +1,3 @@
+1. change config from python to json
+2. allow switching between multiple banners (up to 2)
+3. use generics / classes and inheritance for different rarities
