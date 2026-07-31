@@ -202,7 +202,7 @@ def get_roll_11_guarantee(rarity_seed: int, unit_seed: int, current_track: str, 
 
     if is_finalized:
         print(f"Guaranteed: {next_position}{next_track}: ({next_rarity_seed}, {next_unit_seed})   {cat}")
-        print(f" -> {next_position+1}{next_track}")
+        # print(f" -> {next_position+1}{next_track}")
     return next_rarity_seed, next_unit_seed, next_track, next_position, rarity, cat, bitmask
 
 
@@ -216,7 +216,8 @@ def dfs(rarity_seed: int, unit_seed: int, current_track: str, current_position: 
     improvements = 0
 
     stack = []
-    stack.append((rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask, 11))
+    if catfood_11s > 0:
+        stack.append((rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask, 11))
     stack.append((rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask, 1))
     while True:
         if len(stack) == 0:
@@ -268,7 +269,7 @@ def dfs(rarity_seed: int, unit_seed: int, current_track: str, current_position: 
             continue # dont append new stuff after, path ends here because all cats found
             # break # for testing
         # for backtracking
-        if current_cost > 100:
+        if current_cost > 200:
             continue
         if catfood_11s > 0:
             stack.append((rarity_seed, unit_seed, current_track, current_position, previous_rarity, previous_cat, bitmask, 11))
