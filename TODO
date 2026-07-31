@@ -5,4 +5,4 @@
 5. optimise the search, currently its O(m^n) where m=#(tickets) and n=#(11 draws), n=5 already takes forever
 6. block out some seeds for legend / plat ticket use. (check if seed is reached as part of a unit seed during a single ticket roll, and then un-get whatever cat is in the current banner)
 7. improve error handing / displaying of output if path is not found
-8. also print out paths with cost as good as ccurrent best
+8. also print out paths with cost as good as current best
